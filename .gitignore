@@ -1,0 +1,25 @@
+# Secrets — never commit these
+.env
+.env.*
+!.env.example
+*.token
+*secret*
+*credentials*.json
+service-account*.json
+client_secret*.json
+
+# n8n local data / exports that may contain credentials
+.n8n/
+*.credentials.json
+workflow/*.private.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Node (in case tooling is added later)
+node_modules/
+npm-debug.log*
