@@ -42,7 +42,9 @@ function listText(vr){
 function listKb(vr){
   const ord = orderRows(vr);
   const kb = ord.slice(0, 40).map(r => [{ text: '#' + r._n + ' ' + CAT_BY_KEY[catOf(r)].emoji + ' ' + (ICON[r.status] || '•') + ' ' + trunc(r.task, 24), callback_data: 'card|' + r.task_id }]);
-  kb.push([{ text: '🔄 רענון', callback_data: 'refresh' }]);
+  const bottomRow = [{ text: '🔄 רענון', callback_data: 'refresh' }];
+  if (vr.some(r => r.status === 'בוצע')) bottomRow.push({ text: '🗑 מחק מסומנים', callback_data: 'delmarked' });
+  kb.push(bottomRow);
   return { inline_keyboard: kb };
 }
 function cardText(r){
@@ -109,6 +111,29 @@ if (cb) {
     const id = parts[1]; const r = byId(id);
     if (!r) { payload = { chat_id: chatId, message_id: msgId, text: '⚠️ המשימה לא נמצאה.', reply_markup: listKb(rows) }; }
     else { payload = { chat_id: chatId, message_id: msgId, text: '🗑 למחוק לצמיתות את «' + r.task + '»?', reply_markup: { inline_keyboard: [[{ text: '🗑 מחק', callback_data: 'delok|' + r.task_id }, { text: '↩️ ביטול', callback_data: 'card|' + r.task_id }]] } }; }
+  } else if (type === 'delmarked') {
+    const done = rows.filter(r => r.status === 'בוצע');
+    if (!done.length) {
+      payload = { chat_id: chatId, message_id: msgId, text: '✅ אין משימות מסומנות למחיקה.', reply_markup: listKb(rows) };
+    } else {
+      payload = { chat_id: chatId, message_id: msgId, text: '🗑 למחוק ' + done.length + ' משימות שבוצעו?\n\n' + done.map(r => '• ' + r.task).join('\n'), reply_markup: { inline_keyboard: [[{ text: '🗑 מחק ' + done.length + ' משימות', callback_data: 'delmarkedok' }, { text: '↩️ ביטול', callback_data: 'refresh' }]] } };
+    }
+  } else if (type === 'delmarkedok') {
+    const done = rows.filter(r => r.status === 'בוצע' && r.row_number != null);
+    if (!done.length) {
+      payload = { chat_id: chatId, message_id: msgId, text: '✅ אין משימות מסומנות למחיקה.', reply_markup: listKb(rows) };
+    } else {
+      done.sort((a, b) => b.row_number - a.row_number);
+      const vr = rows.filter(r => r.status !== 'בוצע').map((x, i) => Object.assign({}, x, { _n: i + 1 }));
+      batchItems = done.map((r, idx) => ({
+        json: {
+          finalAction: 'delete',
+          method: idx === 0 ? 'editMessageText' : 'getMe',
+          payload: idx === 0 ? { chat_id: chatId, message_id: msgId, text: listText(vr) + '\n\n🗑 נמחקו ' + done.length + ' משימות שבוצעו.', reply_markup: listKb(vr) } : {},
+          newTask: null, updateRow: null, deleteIndex: r.row_number, reaction: null, chatId: chatId
+        }
+      }));
+    }
   } else if (type === 'delok') {
     const id = parts[1]; const r = byId(id);
     if (!r) { payload = { chat_id: chatId, message_id: msgId, text: '⚠️ המשימה לא נמצאה.', reply_markup: listKb(rows) }; }
@@ -242,6 +267,13 @@ if (cb) {
       } else {
         payload = { chat_id: chatId, text: 'לעריכה: ערוך <מספר> <שם חדש>, או לחץ ✏️ ברשימה.' };
       }
+    }
+  } else if (startsAny(text, ['מחק מסומנים','תמחק מסומנים','הסר מסומנים','מחק בוצעו','תמחק בוצעו','/deletedone'])){
+    const done = rows.filter(r => r.status === 'בוצע');
+    if (!done.length) {
+      payload = { chat_id: chatId, text: '✅ אין משימות מסומנות למחיקה.' };
+    } else {
+      payload = { chat_id: chatId, text: '🗑 למחוק ' + done.length + ' משימות שבוצעו?\n\n' + done.map(r => '• ' + r.task).join('\n'), reply_markup: { inline_keyboard: [[{ text: '🗑 מחק ' + done.length + ' משימות', callback_data: 'delmarkedok' }, { text: '↩️ ביטול', callback_data: 'refresh' }]] } };
     }
   } else if (startsAny(text, ['מחק','תמחק','הסר','/delete'])){
     const dv = startsAny(text, ['מחק','תמחק','הסר','/delete']);
