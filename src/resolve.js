@@ -42,9 +42,7 @@ function listText(vr){
 function listKb(vr){
   const ord = orderRows(vr);
   const kb = ord.slice(0, 40).map(r => [{ text: '#' + r._n + ' ' + CAT_BY_KEY[catOf(r)].emoji + ' ' + (ICON[r.status] || '•') + ' ' + trunc(r.task, 24), callback_data: 'card|' + r.task_id }]);
-  const bottomRow = [{ text: '🔄 רענון', callback_data: 'refresh' }];
-  if (vr.some(r => r.status === 'בוצע')) bottomRow.push({ text: '🗑 מחק מסומנים', callback_data: 'delmarked' });
-  kb.push(bottomRow);
+  kb.push([{ text: '🔄 רענון', callback_data: 'refresh' }, { text: '🗑 מחק מסומנים', callback_data: 'delmarked' }]);
   return { inline_keyboard: kb };
 }
 function cardText(r){
